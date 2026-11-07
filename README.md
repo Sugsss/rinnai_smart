@@ -95,3 +95,42 @@ run `python -m pytest -q --disable-socket --allow-unix-socket`. The tests use
 synthetic device data and mocked HTTP/MQTT transports, including Home Assistant's
 flow manager, platform setup, entity registry, and options reload. They do not
 contact Rinnai or control a physical heater.
+
+## Home Assistant 2026.11 compatibility (this fork only)
+
+This fork (`Sugsss/rinnai_smart`) is upstream `0.0.7` plus one fix:
+
+- **Problem:** HA Core 2026.11 removed the `PRECISION_WHOLE` re-export from
+  `homeassistant.components.water_heater`. Importing it there made
+  `water_heater.py` fail at import time, aborting the whole config entry
+  (`Error setting up entry ... for rinnai`) and leaving every Rinnai entity
+  unavailable.
+- **Fix:** import `PRECISION_WHOLE` from `homeassistant.const`, where it still
+  exists (`1`). This is backward compatible with older HA versions, which only
+  re-exported the same constant.
+- **Verified** on HAOS 2026.11.0: after a core restart the config entry loads,
+  the `water_heater` platform imports, and all 7 registered `rinnai` entities
+  are enabled.
+- **Upstream:** [PR #19](https://github.com/catro/rinnai_smart/pull/19)
+  (an independently verified alternative to the earlier
+  [PR #18](https://github.com/catro/rinnai_smart/pull/18)). Once either is
+  merged, prefer the upstream release again.
+
+### Installing this build
+
+The directory in this repository is `custom_components/rinnai_smart`, while the
+manifest `domain` is `rinnai`. Home Assistant indexes custom integrations by the
+manifest domain, so an existing "Rinnai Smart" / 林内智家 config entry still
+matches. **Never keep both** `custom_components/rinnai` and
+`custom_components/rinnai_smart` on the same machine: both declare domain
+`rinnai`. Remove/rename the old directory before installing, or simply keep the
+already-patched `custom_components/rinnai` in place.
+
+For HACS, add this repository as a custom *Integration* repository and install
+the `0.0.7-ha2026.11` release. `main` contains the same patched build.
+
+### Known follow-ups (not changed here)
+
+- HA 2026.11 warns that `_attr_temperature_unit` and `target_temperature` are
+  deprecated and stop working in 2027.11 (use `native_*` instead).
+- A blocking `import_module` warning is logged during platform forwarding.
